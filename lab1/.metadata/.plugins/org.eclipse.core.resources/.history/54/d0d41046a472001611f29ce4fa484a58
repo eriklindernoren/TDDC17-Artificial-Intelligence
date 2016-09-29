@@ -1,0 +1,757 @@
+package tddc17;
+
+
+import aima.core.environment.liuvacuum.*;
+import aima.core.agent.Action;
+import aima.core.agent.AgentProgram;
+import aima.core.agent.Percept;
+import aima.core.agent.impl.*;
+
+import java.awt.Point;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Random;
+
+class MyAgentState
+{
+	public int[][] world = new int[30][30];
+	public int initialized = 0;
+	final int UNKNOWN 	= 0;
+	final int WALL 		= 1;
+	final int CLEAR 	= 2;
+	final int DIRT		= 3;
+	final int HOME		= 4;
+	final int ACTION_NONE 			= 0;
+	final int ACTION_MOVE_FORWARD 	= 1;
+	final int ACTION_TURN_RIGHT 	= 2;
+	final int ACTION_TURN_LEFT 		= 3;
+	final int ACTION_SUCK	 		= 4;
+	
+	public int agent_x_position = 1;
+	public int agent_y_position = 1;
+	public int agent_last_action = ACTION_NONE;
+	
+	public static final int NORTH 	= 0;
+	public static final int EAST 	= 1;
+	public static final int SOUTH 	= 2;
+	public static final int WEST 	= 3;
+	public int agent_direction 		= EAST;
+	
+	
+	public int homeX = 1;
+	public int homeY = 1;
+	Point homeNode = new Point();
+	
+	public boolean goingHome = false;
+	
+	// Initial values for the world dimension
+	public int widthOfWorld = 31;
+	public int heightOfWorld = 31;
+	
+	// Number of bumps that we will accept at the same x or y coordinate before
+	//deciding that it's the width or height of the world
+	public final int LARGEST_X_VALUE_COUNTER = 3;
+	public final int LARGEST_Y_VALUE_COUNTER = 2;
+	public int noChangeToLargestValueCounter = LARGEST_X_VALUE_COUNTER;
+	
+	// Largest x and y value found while searching for the world dimensions
+	public int largestX = -1;
+	public int largestY = -1;
+	
+	// When bumping into walls while searching for the world dimensions we save the
+	// coordinates to see if we improve (find bigger values) between bumps
+	public int prevLargestX = -1;
+	public int prevLargestY = -1;
+	
+	// When 2 => search the bottom half of the world
+	// When 1 => search the upper half of the world
+	// When 0 => go home
+	public int worldDivideCounter = 2;
+		
+	// Nodes that we couldn't find a A* path to
+	public ArrayList<Point> unreachableNodes = new ArrayList<Point>(); 
+		
+	// The path to a target node
+	public ArrayList<Point> currentPath = new ArrayList<Point>();
+			
+	MyAgentState()
+	{
+		homeNode.setLocation(homeX, homeY);
+		
+		for (int i=0; i < world.length; i++)
+			for (int j=0; j < world[i].length ; j++)
+				world[i][j] = UNKNOWN;
+		world[1][1] = HOME;
+		agent_last_action = ACTION_NONE;
+	}
+	// Based on the last action and the received percept updates the x & y agent position
+	public void updatePosition(DynamicPercept p)
+	{
+		Boolean bump = (Boolean)p.getAttribute("bump");
+
+		if (!bump && agent_last_action == 1)
+	    {
+			switch (agent_direction) {
+			case MyAgentState.NORTH:
+				agent_y_position--;
+				break;
+			case MyAgentState.EAST:
+				agent_x_position++;
+				break;
+			case MyAgentState.SOUTH:
+				agent_y_position++;
+				break;
+			case MyAgentState.WEST:
+				agent_x_position--;
+				break;
+			}
+	    }
+		
+	}
+	
+	// Finds the closest node that has yet to be discovered. When deciding which
+	// node is closest the distance AND the number of turns needed to be made to travel to
+	// that node is taken into consideration
+	public Point findNearestUnexploredArea(){
+		
+		String nodeKey = agent_x_position + "_" + agent_y_position;
+		
+		// Specifies the interval in which we want to check for close nodes.
+		// Algorithm starts out looking for nodes in the bottom half of the grid, and
+		// when every node has been discovered in that half we search the upper half
+		// (To reduce the distance to the home node when we're done)
+		int dimensionY = Math.round(heightOfWorld / 2);
+		int startY = 1;
+		if(heightOfWorld > 10){
+			if(worldDivideCounter == 2)
+				startY = heightOfWorld - dimensionY;
+			else
+				startY = 1;
+		}else{
+			worldDivideCounter = 1;
+			dimensionY = heightOfWorld - 1;
+		}
+		
+		
+		Point cheapestUnexploredNode = new Point(-1, -1);
+		
+		// Search through every node in the specified interval positions and
+		// look for the closest node by distance and number of turns
+		int cheapest = -1;
+		for(int y = startY; y <= startY + dimensionY; y++){
+			for(int x = 1; x <= widthOfWorld; x++){
+				if(world[x][y] == UNKNOWN || world[x][y] == HOME){
+					Point target = new Point(x, y);
+					String targetKey = x + "_" + y;
+					// Pays no mind to unreachable nodes
+					if(!unreachableNodes.contains(target)){
+						int turns = MyAgentProgram.getNumberOfTurnsBetweenNodes(nodeKey, targetKey, agent_direction);
+						int distance = Math.abs(agent_x_position - x) + Math.abs(agent_y_position - y);
+						int cost = turns + distance;
+						if(cheapest == -1 || cost < cheapest){
+							cheapest = cost;
+							cheapestUnexploredNode = new Point(x, y);
+						}
+					}else
+						System.out.println("Unreachable" + target.x + "," + target.y);
+				}
+			}
+		}
+		
+		// If we couldn't find any nodes we either change the search part of the grid from 
+		// the lower half to the upper half - or if that has already been done then we're done
+		// searching the whole world and we can return to the home node
+		if(cheapestUnexploredNode.x == -1 && cheapestUnexploredNode.y == -1){
+			worldDivideCounter--;
+			// Return home
+			if(worldDivideCounter == 0){
+				cheapestUnexploredNode.setLocation(homeX, homeY);
+				goingHome = true;
+			}
+			// Check the upper half
+			else
+				return findNearestUnexploredArea();
+		}
+				
+		return cheapestUnexploredNode;
+	}
+	
+	
+	public void updateWorld(int x_position, int y_position, int info)
+	{
+		world[x_position][y_position] = info;
+	}
+	
+	public void printWorldDebug()
+	{
+		for (int i=0; i < world.length; i++)
+		{
+			for (int j=0; j < world[i].length ; j++)
+			{
+				if (world[j][i]==UNKNOWN)
+					System.out.print(" ! ");
+				if (world[j][i]==WALL)
+					System.out.print(" | ");
+				if (world[j][i]==CLEAR)
+					System.out.print(" . ");
+				if (world[j][i]==DIRT)
+					System.out.print(" D ");
+				if (world[j][i]==HOME)
+					System.out.print(" H ");
+			}
+			System.out.println("");
+		}
+	}
+}
+
+class MyAgentProgram implements AgentProgram {
+
+	private int initnialRandomActions = 10;
+	private Random random_generator = new Random();
+	
+	// Here you can define your variables!
+	public int iterationCounter = 10;
+	public MyAgentState state = new MyAgentState();
+	
+	// moves the Agent to a random start position
+	// uses percepts to update the Agent position - only the position, other percepts are ignored
+	// returns a random action
+	private Action moveToRandomStartPosition(DynamicPercept percept) {
+		int action = random_generator.nextInt(6);
+		initnialRandomActions--;
+		state.updatePosition(percept);
+		if(action==0) {
+		    state.agent_direction = ((state.agent_direction-1) % 4);
+		    if (state.agent_direction<0) 
+		    	state.agent_direction +=4;
+		    state.agent_last_action = state.ACTION_TURN_LEFT;
+			return LIUVacuumEnvironment.ACTION_TURN_LEFT;
+		} else if (action==1) {
+			state.agent_direction = ((state.agent_direction+1) % 4);
+		    state.agent_last_action = state.ACTION_TURN_RIGHT;
+		    return LIUVacuumEnvironment.ACTION_TURN_RIGHT;
+		} 
+		state.agent_last_action=state.ACTION_MOVE_FORWARD;
+		return LIUVacuumEnvironment.ACTION_MOVE_FORWARD;
+	}
+	
+	// Method used iteratively to find the right wall so that we can specify
+	// the world width, and know for which x values to search for nodes.
+	private void findRightWall(DynamicPercept percept){
+		
+		// If we have bumped into a wall a specified amount of times and the 
+		// x value hasn't change -> we set the world width to that x value
+		if(state.noChangeToLargestValueCounter == 0){
+			state.widthOfWorld = state.largestX;
+			state.noChangeToLargestValueCounter = state.LARGEST_Y_VALUE_COUNTER;
+		}
+		// The x value hasn't changed since the last time we bumped into a wall
+		// -> reduce the counter
+		else if(state.largestX == state.prevLargestX)
+			state.noChangeToLargestValueCounter--;
+		// We have found a bigger x value than the largest saved value so we reset
+		// the counter
+		else
+			state.noChangeToLargestValueCounter = state.LARGEST_X_VALUE_COUNTER;
+		
+//		System.out.println();
+//		System.out.println("NoChangeCounter: " + state.noChangeToLargestValueCounter);
+//		System.out.println("LargestX: " + state.largestX);
+//		System.out.println("PrevLargestX: " + state.prevLargestX);
+//		System.out.println();
+		
+		// We set a path to a position a couple of x coordinates forward to look for the right wall
+		Point currentNode = new Point(state.agent_x_position, state.agent_y_position);
+		Point newTarget = new Point(state.agent_x_position + 7, state.agent_y_position + 1);
+		
+//		System.out.println("Target: " + newTarget.get(0) + "_" + newTarget.get(1));
+
+		// Look for a path to the new x position
+		state.currentPath = aStar(currentNode, newTarget);
+		
+		// If we can't find a path we set the world width to the x position
+		// (This should never happen)
+		if(state.currentPath.isEmpty())
+			state.widthOfWorld = state.largestX;
+		
+	}
+	
+	// Method used iteratively to find the bottom wall so that we can specify
+	// the world height, and know for which y values to search for nodes.
+	private void findBottomWall(DynamicPercept percept){
+				
+		// If we have bumped into a wall a specified amount of times and the 
+		// y value hasn't change -> we set the world height to that y value
+		if(state.noChangeToLargestValueCounter == 0)
+			state.heightOfWorld = state.largestY;
+		// The y value hasn't changed since the last time we bumped into a wall
+		// -> reduce the counter
+		else if(state.largestY == state.prevLargestY)
+			state.noChangeToLargestValueCounter--;
+		// We have found a bigger y value than the largest saved value so we reset
+		// the counter
+		else
+			state.noChangeToLargestValueCounter = state.LARGEST_Y_VALUE_COUNTER;
+		
+//		System.out.println();
+//		System.out.println("NoChangeCounter: " + state.noChangeToLargestValueCounter);
+//		System.out.println("LargestY: " + state.largestY);
+//		System.out.println("PrevLargestY: " + state.prevLargestY);
+//		System.out.println();
+
+		// We set a path to a position a couple of y coordinates forward to look for the bottom wall
+		Point currentNode = new Point(state.agent_x_position, state.agent_y_position);
+		Point newTarget = new Point(state.agent_x_position - 1, state.agent_y_position + 7);
+
+		// Look for a path to the new y position
+		state.currentPath = aStar(currentNode, newTarget);
+		
+		// If we can't find a path we set the world height to the y position
+		// (This should never happen)
+		if(state.currentPath.isEmpty())
+			state.heightOfWorld = state.largestY;
+	}
+	
+	// Method that turns the agent in the right direction and 
+	// sets the direction and last action variables accordingly
+	private Action turnRight(){
+		state.agent_direction++;
+		state.agent_direction%=4;
+		state.agent_last_action=state.ACTION_TURN_RIGHT;
+    	return LIUVacuumEnvironment.ACTION_TURN_RIGHT;
+	}
+	
+	// Method that turns the agent in the left direction and 
+	// sets the direction and last action variables accordingly
+	private Action turnLeft(){
+		state.agent_direction--;
+		if(state.agent_direction == -1)
+			state.agent_direction = 3;
+		state.agent_last_action=state.ACTION_TURN_LEFT;
+    	return LIUVacuumEnvironment.ACTION_TURN_LEFT;
+	}
+	
+	// Method that returns the distance between the two parameter nodes
+	// (diff_x + diff_y)
+	private Integer getHeuristicDistance(String start, String goal){
+		int x = Integer.parseInt(start.split("_")[0]);
+		int y = Integer.parseInt(start.split("_")[1]);
+		int targetX = Integer.parseInt(goal.split("_")[0]);
+		int targetY = Integer.parseInt(goal.split("_")[1]);
+		int diffX = Math.abs(x - targetX);
+		int diffY = Math.abs(y - targetY);
+		int distance = diffX + diffY;
+		
+		return distance;
+	}
+	
+	// Goes through the open nodes and returns the node with the lowest heuristic score 
+	private String findNodeWithLowestHeuristic(HashMap<String, Integer> fScore, ArrayList<String> openSet){
+		int lowest = -1;
+		String nearestNode = "";
+		for(String nodeKey: openSet){
+	        Integer heuristic = fScore.get(nodeKey);
+			if(heuristic < lowest || lowest == -1){
+	        	nearestNode = nodeKey;
+	        	lowest = heuristic;
+	        }
+		}
+		return nearestNode;
+	}
+	
+	// Returns the adjacent nodes to the specified node. Checks the boundaries
+	// make sure the nodes are within the world
+	private ArrayList<String> findNeighbors(String node){
+		int nodeX = Integer.parseInt(node.split("_")[0]);
+		int nodeY = Integer.parseInt(node.split("_")[1]);
+		ArrayList<Point> temp = new ArrayList<Point>();
+		if(nodeX > 1){
+			Point leftNeighbor = new Point(nodeX - 1, nodeY);
+			temp.add(leftNeighbor);
+		}
+		if(nodeY > 1){
+			Point upperNeighbor = new Point(nodeX, nodeY - 1);
+			temp.add(upperNeighbor);
+		}
+		
+		if(nodeX < state.widthOfWorld){
+			Point rightNeighbor = new Point(nodeX + 1, nodeY);
+			temp.add(rightNeighbor);
+		}
+		
+		if(nodeY < state.heightOfWorld){
+			Point lowerNeighbor = new Point(nodeX, nodeY + 1);
+			temp.add(lowerNeighbor);
+		}
+
+		ArrayList<String> neighbors = new ArrayList<String>();
+		for(Point neighbor: temp){
+//			System.out.println("NODE: " + nodeX + "," + nodeY + " - NEIGHBOR: " + neighbor.get(0) + "," + neighbor.get(1));
+			if(neighbor.x < 30 && neighbor.y < 30 && state.world[neighbor.x][neighbor.y] != state.WALL){
+				String neighborKey = neighbor.x + "_" + neighbor.y;
+				neighbors.add(neighborKey);
+			}
+		}
+		return neighbors;
+	}
+	
+	
+	// Method that returns the amount of turns needed for the agent to travel to
+	// the specified target node
+	public static int getNumberOfTurnsBetweenNodes(String node, String target, int direction){
+		int x = Integer.parseInt(node.split("_")[0]);
+		int y = Integer.parseInt(node.split("_")[1]);
+		int targetX = Integer.parseInt(target.split("_")[0]);
+		int targetY = Integer.parseInt(target.split("_")[1]);
+		int turns = 0;
+		if(x > targetX && direction == MyAgentState.EAST)
+			turns += 2;
+		else if(x > targetX && direction != MyAgentState.WEST)
+			turns += 1;
+		if(x < targetX && direction == MyAgentState.WEST)
+			turns += 2;
+		else if(x < targetX && direction != MyAgentState.EAST)
+			turns += 1;
+		
+		if(y > targetY && direction == MyAgentState.SOUTH)
+			turns += 2;
+		else if(y > targetY && direction != MyAgentState.NORTH)
+			turns += 1;
+		if(y < targetY && direction == MyAgentState.NORTH)
+			turns += 2;
+		else if(y < targetY && direction != MyAgentState.SOUTH)
+			turns += 1;
+		
+		return turns;
+	}
+	
+	// Returns the direction that the agent will have when it has 
+	// traveled to the target node
+	private int updateDirection(String node, String target){
+		int direction = 0;
+		int x = Integer.parseInt(node.split("_")[0]);
+		int y = Integer.parseInt(node.split("_")[1]);
+		int targetX = Integer.parseInt(target.split("_")[0]);
+		int targetY = Integer.parseInt(target.split("_")[1]);
+		if(x < targetX)
+			direction = MyAgentState.EAST;
+		else if(x > targetX)
+			direction = MyAgentState.WEST;
+		else if(y < targetY)
+			direction = MyAgentState.NORTH;
+		else if(y > targetY)
+			direction = MyAgentState.SOUTH;
+		
+		return direction;
+	}
+	
+	
+	// A* search for a path to the goal node. Will use distance and 
+	// the amount of turns needed to travel to the node as the heuristic value
+	private ArrayList<Point> aStar(Point start, Point goal){
+		
+		String startKey = start.x + "_" + start.y;
+		String goalKey = goal.x + "_" + goal.y;
+		
+		ArrayList<String> closedSet = new ArrayList<String>();
+		ArrayList<String> openSet = new ArrayList<String>();
+		openSet.add(startKey);
+
+		HashMap<String, String> cameFrom = new HashMap<String, String>();
+		
+		HashMap<String, Integer> gScore = new HashMap<String, Integer>();
+		gScore.put(startKey, 0);
+		HashMap<String, Integer> fScore = new HashMap<String, Integer>();
+		fScore.put(startKey, getHeuristicDistance(startKey, goalKey));
+		
+		// Initial direction of the agent
+		int direction = state.agent_direction;
+		
+		boolean first = true;
+		while(!openSet.isEmpty()){
+			// Always prioritize the node with the lowest heuristic value
+			String current = findNodeWithLowestHeuristic(fScore, openSet);
+
+			// Updates the direction for the agent for all positions during
+			// the path
+			if(!first && cameFrom.containsKey(current))
+				direction = updateDirection(cameFrom.get(current), current);
+			
+			// If the current node is the goal node -> done! 
+			// Backtrack from the goal node and return the path
+			if(current.equals(goalKey))
+				return reconstructedPath(cameFrom, current);
+			
+			openSet.remove(current);
+			closedSet.add(current);
+			
+			// Expand the node to the neighboring nodes
+			ArrayList<String> neighbors = findNeighbors(current);
+			for(String neighbor: neighbors){
+
+				if(closedSet.contains(neighbor))
+					continue;
+				
+				int tentativeGScore = gScore.get(current) + getNumberOfTurnsBetweenNodes(current, neighbor, direction) + 1;
+				if(!openSet.contains(neighbor))
+					openSet.add(neighbor);
+				else if(!gScore.containsKey(neighbor) || tentativeGScore < gScore.get(neighbor))
+					continue;
+				
+				// Update the heuristic value for the node
+				cameFrom.put(neighbor, current);
+				gScore.put(neighbor, tentativeGScore);
+				fScore.put(neighbor, tentativeGScore + getHeuristicDistance(neighbor, goalKey));
+			}
+			first = false;
+		}
+		
+		// We couldn't find a path to the goal node
+		return new ArrayList<Point>();
+	}
+	
+	// Backtracks from the goal nodes and saves all nodes along that path and lastly returns
+	// the path
+	private ArrayList<Point> reconstructedPath(HashMap<String, String> cameFrom, String current) {
+		ArrayList<Point> totalPath = new ArrayList<Point>();
+		Point node = new Point();
+		int x = Integer.parseInt(current.split("_")[0]);
+		int y = Integer.parseInt(current.split("_")[1]);
+		node.setLocation(x, y);
+		totalPath.add(node);
+		while(cameFrom.containsKey(current)){
+//			System.out.println("PATH: " + current);
+			current = cameFrom.get(current);
+			x = Integer.parseInt(current.split("_")[0]);
+			y = Integer.parseInt(current.split("_")[1]);
+			node = new Point();
+			node.setLocation(x, y);
+			totalPath.add(0, node);
+		}
+		totalPath.remove(0);
+		return totalPath;
+	}
+	
+	// Make the vacuum cleaner travel to the parameter node
+	private Action navigateToNode(Point targetNode){
+
+		int direction = state.agent_direction;
+		int x = state.agent_x_position;
+		int y = state.agent_y_position;
+		int targetX = targetNode.x;
+		int targetY = targetNode.y;
+		
+//		System.out.println("Navigate to - " + targetX + "_" + targetY);
+		
+		// The following if statements make sure that we're rotated in the
+		// right direction before going forward
+		if(x > targetX){
+			if(!(direction == MyAgentState.WEST)){
+				if(direction == MyAgentState.NORTH)
+					return turnLeft();
+				else
+					return turnRight();
+			}
+		}
+		else if(x < targetX){
+			if(!(direction == MyAgentState.EAST)){
+				if(direction == MyAgentState.SOUTH)
+					return turnLeft();
+				else
+					return turnRight();
+			}
+		}
+		else if(y < targetY){
+			if(!(direction == MyAgentState.SOUTH)){
+				if(direction == MyAgentState.WEST)
+					return turnLeft();
+				else
+					return turnRight();
+			}
+		}
+		else if(y > targetY){
+			if(!(direction == MyAgentState.NORTH)){
+				if(direction == MyAgentState.EAST)
+					return turnLeft();
+				else
+					return turnRight();
+			}
+		}
+		
+		// If the cleaner is rotated correctly we move forward to the target
+		// node and remove the node from the path
+		state.currentPath.remove(0);
+		state.agent_last_action=state.ACTION_MOVE_FORWARD;
+		return LIUVacuumEnvironment.ACTION_MOVE_FORWARD;
+}
+
+	@Override
+	public Action execute(Percept percept) {
+		
+		// DO NOT REMOVE this if condition!!!
+    	if (initnialRandomActions>0) {
+    		return moveToRandomStartPosition((DynamicPercept) percept);
+    	} else if (initnialRandomActions==0) {
+    		// process percept for the last step of the initial random actions
+    		initnialRandomActions--;
+    		state.updatePosition((DynamicPercept) percept);
+//			System.out.println("Processing percepts after the last execution of moveToRandomStartPosition()");
+			state.agent_last_action=state.ACTION_SUCK;
+	    	return LIUVacuumEnvironment.ACTION_SUCK;
+    	}
+		
+    	// This example agent program will update the internal agent state while only moving forward.
+    	// START HERE - code below should be modified!
+    	    	
+//    	System.out.println("x=" + state.agent_x_position);
+//    	System.out.println("y=" + state.agent_y_position);
+//    	System.out.println("dir=" + state.agent_direction);
+//    	if(!state.currentPath.isEmpty()){
+//    		ArrayList<Integer> lastNode = state.currentPath.get(state.currentPath.size()-1);
+//    		System.out.println("Going to- X:" + lastNode.get(0) + " Y: " + lastNode.get(1));
+//    	}
+    	
+//	    iterationCounter--;
+//	    
+//	    if (iterationCounter==0)
+//	    	return NoOpAction.NO_OP;	    
+
+	    
+	    DynamicPercept p = (DynamicPercept) percept;
+	    Boolean bump = (Boolean)p.getAttribute("bump");
+	    Boolean dirt = (Boolean)p.getAttribute("dirt");
+//	    System.out.println("percept: " + p);
+	    
+	    // If we still haven't defined the grid width/height and we find a new
+	    // x or y value that is bigger than the previous ones, we save them as the largest
+	    if(state.widthOfWorld == 31)
+	    	if(state.agent_x_position > state.largestX)
+	    		state.largestX = state.agent_x_position;
+	    
+	    if(state.heightOfWorld == 31)
+	    	if(state.agent_y_position > state.largestY)
+	    		state.largestY = state.agent_y_position;
+	    
+	    
+	    // State update based on the percept value and the last action
+	    state.updatePosition((DynamicPercept)percept);
+	    if (bump) {
+			switch (state.agent_direction) {
+			case MyAgentState.NORTH:
+				state.updateWorld(state.agent_x_position,state.agent_y_position-1,state.WALL);
+				break;
+			case MyAgentState.EAST:
+				state.updateWorld(state.agent_x_position+1,state.agent_y_position,state.WALL);
+				break;
+			case MyAgentState.SOUTH:
+				state.updateWorld(state.agent_x_position,state.agent_y_position+1,state.WALL);
+				break;
+			case MyAgentState.WEST:
+				state.updateWorld(state.agent_x_position-1,state.agent_y_position,state.WALL);
+				break;
+			}
+	    }
+	    
+	    if (dirt)
+	    	state.updateWorld(state.agent_x_position,state.agent_y_position,state.DIRT);
+	    else
+	    	state.updateWorld(state.agent_x_position,state.agent_y_position,state.CLEAR);
+	    
+	    state.printWorldDebug();
+	    	    
+	    if (dirt){
+//	    	System.out.println("DIRT -> choosing SUCK action!");
+	    	state.agent_last_action=state.ACTION_SUCK;
+	    	return LIUVacuumEnvironment.ACTION_SUCK;
+	    } 
+	    // If we're returning home we follow the path home until the path is
+	    // empty ->  finished
+	    else if(state.goingHome){
+    		if(state.currentPath.isEmpty())
+    			return NoOpAction.NO_OP;
+    		Point targetNode = state.currentPath.get(0);	
+    		return navigateToNode(targetNode);
+	    }
+	    else{
+	    	if (bump){
+	    		// If the grid size isn't defined and we have bumped into a wall we 
+	    		// need to get around that wall to see if we can find larger x and y values
+	    		// to find out the world dimensions
+	    		if(state.widthOfWorld == 31){
+		    		findRightWall((DynamicPercept)p);
+		    		state.prevLargestX = state.largestX;
+	    		}
+	    		if(state.widthOfWorld != 31 && state.heightOfWorld == 31){
+		    		findBottomWall((DynamicPercept)p);
+		    		state.prevLargestY = state.largestY;
+	    		}
+    			
+	    		
+	    		Point currentNode = new Point(state.agent_x_position, state.agent_y_position);
+    			
+	    		// We search for the closest undiscovered node and a path to that node using A*
+    			while(state.currentPath.isEmpty()){
+    				Point newTarget = state.findNearestUnexploredArea();
+//		    		System.out.println("New target: " + newTarget.get(0) + "_" + newTarget.get(1));
+	    			state.currentPath = aStar(currentNode, newTarget);
+	    			
+	    			// If we couldn't find a A* path to the node we save it as unreachable.
+	    			// If we haven't found any new targets and goingHome = true, we set the path
+	    			// to the home node.
+	    			if(state.currentPath.isEmpty()){
+	    				if(state.goingHome)
+	    					state.currentPath = aStar(currentNode, state.homeNode);
+	    				else
+	    					state.unreachableNodes.add(newTarget);
+	  	    		}
+	    			
+    			}
+    			
+    			// Fetch the first node along the path and travel to that node
+				Point targetNode = state.currentPath.get(0);
+	    		return navigateToNode(targetNode);
+	    	}
+	    	
+	    	// If we haven't specified the world dimensions we look for the largest x
+	    	// and y values that we can find and saves those as the width and height of 
+	    	// the world
+    		if(state.widthOfWorld == 31 && state.currentPath.isEmpty())
+	    		findRightWall((DynamicPercept)p);
+	    	
+    		if(state.widthOfWorld != 31 && state.heightOfWorld == 31 && state.currentPath.isEmpty())
+	    		findBottomWall((DynamicPercept)p);
+
+    		// If we're not currently traveling towards any node
+    		if(state.currentPath.isEmpty()){
+	    		Point currentNode = new Point(state.agent_x_position, state.agent_y_position);
+	    		
+	    		// We search for the closest undiscovered node and a path to that node using A*
+	    		while(state.currentPath.isEmpty()){
+    				Point newTarget = state.findNearestUnexploredArea();
+//    				System.out.println("New target: " + newTarget.get(0) + "_" + newTarget.get(1));
+	    			state.currentPath = aStar(currentNode, newTarget);
+	    			
+	    			// If we couldn't find a A* path to the node we save it as unreachable.
+	    			// If we haven't found any new targets and goingHome = true, we set the path
+	    			// to the home node.
+	    			if(state.currentPath.isEmpty()){
+	    				if(state.goingHome)
+	    					state.currentPath = aStar(currentNode, state.homeNode);
+	    				else
+	    					state.unreachableNodes.add(newTarget);
+	    			}
+    			}
+			}
+    		
+    		// Fetch the first node along the path and travel to that node
+    		Point targetNode = state.currentPath.get(0);
+    		return navigateToNode(targetNode);	
+	    }
+	}
+}
+
+public class MyVacuumAgent extends AbstractAgent {
+    public MyVacuumAgent() {
+    	super(new MyAgentProgram());
+	}
+}

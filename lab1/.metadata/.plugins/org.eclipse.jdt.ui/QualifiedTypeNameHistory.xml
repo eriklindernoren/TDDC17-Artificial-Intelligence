@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+<fullyQualifiedTypeName name="aima.core.search.framework.Problem"/>
+<fullyQualifiedTypeName name="aima.core.search.uninformed.BreadthFirstSearch"/>
+<fullyQualifiedTypeName name="java.util.ArrayList"/>
+<fullyQualifiedTypeName name="aima.core.agent.impl.DynamicPercept"/>
+<fullyQualifiedTypeName name="java.util.HashMap"/>
+<fullyQualifiedTypeName name="java.util.Comparator"/>
+<fullyQualifiedTypeName name="java.util.Collections"/>
+<fullyQualifiedTypeName name="java.util.Arrays"/>
+<fullyQualifiedTypeName name="java.util.Map"/>
+<fullyQualifiedTypeName name="java.util.Iterator"/>
+<fullyQualifiedTypeName name="aima.core.environment.liuvacuum.LIUVacuumEnvironment"/>
+<fullyQualifiedTypeName name="java.util.concurrent.ThreadLocalRandom"/>
+<fullyQualifiedTypeName name="tddc17.MyAgentState"/>
+<fullyQualifiedTypeName name="tddc17.MyVacuumAgent"/>
+<fullyQualifiedTypeName name="tddc17.MyAgentProgram"/>
+<fullyQualifiedTypeName name="aima.core.agent.impl.NoOpAction"/>
+<fullyQualifiedTypeName name="java.awt.Point"/>
+</qualifiedTypeNameHistroy>

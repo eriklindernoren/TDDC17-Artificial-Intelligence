@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring clone="true" comment="Infer generic type arguments on &apos;project&apos;&#x0A;- Original project: &apos;project&apos;&#x0A;- Original elements:&#x0A;     tddc17.MyVacuumAgent.java&#x0A;- Assume clone() returns an instance of the receiver type&#x0A;- Leave unconstrained type arguments raw" description="Infer generic type arguments" element1="/&lt;tddc17{MyVacuumAgent.java" flags="6" id="org.eclipse.jdt.ui.infer.typearguments" leave="true" stamp="1472648087026" version="1.0"/>
+</session>
