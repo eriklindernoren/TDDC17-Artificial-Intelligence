@@ -38,9 +38,6 @@ public class TutorialController extends Controller {
 	}
 
     public void tick(int currentTime) {
-//    	System.out.println("Angle: " + angle.getValue());
-//    	System.out.println("Velocity X: " + vx.getValue());
-//    	System.out.println("Velocity Y: " + vy.getValue());
     	
 		String yDir = (vy.getValue() < 0) ? "N": "S";
 		String xDir = (vx.getValue() < 0) ? "W": "E";
@@ -50,7 +47,13 @@ public class TutorialController extends Controller {
 		String dir = String.format("%s%s", yDir, xDir);
 		double vel = Math.sqrt(Math.pow(xVel, 2) + Math.pow(yVel, 2));
 		
+		
+//    	System.out.println("Angle: " + angle.getValue());
+//    	System.out.println("Velocity X: " + vx.getValue());
+//    	System.out.println("Velocity Y: " + vy.getValue());
 		System.out.println(String.format("Direction: %s, Velocity: %s", dir, vel + ""));
+//		System.out.println("----");
+
 		
     	if(angle.getValue() < -0.0095)
     		leftRocket.setBursting(true);

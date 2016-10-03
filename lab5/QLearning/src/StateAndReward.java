@@ -23,8 +23,7 @@ public class StateAndReward {
 		else
 			state = "180";
 		
-		if(!state.equals("0"))
-			state += String.format("(%s)", direction);
+		state += String.format("(%s)", direction);
 						
 		return state;
 	}
@@ -36,10 +35,8 @@ public class StateAndReward {
 				
 		double reward = 0;
 		
-		int degree = 0;
-		if(angleState.contains("("))
-			degree = Integer.parseInt(angleState.substring(0, angleState.indexOf("(")));
-		
+		int degree = Integer.parseInt(angleState.substring(0, angleState.indexOf("(")));
+
 		if(degree == 1)
 			reward = 10000;
 		else if(degree == 2)
@@ -60,7 +57,6 @@ public class StateAndReward {
 	public static String getStateHover(double angle, double vx, double vy) {
 		
 		String yDir = (vy < 0) ? "N": "S";
-		String xDir = (vx < 0) ? "W": "E";
 		double yVel = Math.abs(vy);
 		double xVel = Math.abs(vx);
 		double vel = Math.sqrt(Math.pow(xVel, 2) + Math.pow(yVel, 2));
@@ -96,11 +92,11 @@ public class StateAndReward {
 		else if(vel.equals("yHover"))
 			reward = 10000;
 		else if(vel.equals("ySlow"))
-			reward = 1500;
+			reward = 0;
 		else if(vel.equals("yMed"))
 			reward = -10000;
 		else
-			reward = -10000;
+			reward = -15000;
 		
 		return reward;
 	}

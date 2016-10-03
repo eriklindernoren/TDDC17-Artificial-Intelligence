@@ -39,14 +39,15 @@ public class QLearningController extends Controller {
 
 	static final double INIT_EXPLORE_CHANCE = 0.9;
 	static final double FINAL_EXPLORE_CHANCE = 0.1;
-	static final int LESSEN_EXPLORE_TO_TICK = 2500000;
-	static final double explore_update = ((INIT_EXPLORE_CHANCE - FINAL_EXPLORE_CHANCE) / LESSEN_EXPLORE_TO_TICK);
+	static final int REDUCE_EXPLORE_UNITL_TICK = 1500000;
+	static final double explore_update = ((INIT_EXPLORE_CHANCE - FINAL_EXPLORE_CHANCE) / REDUCE_EXPLORE_UNITL_TICK);
 	
 	
 	/* PARAMETERS OF THE LEARNING ALGORITHM - THESE MAY BE TUNED BUT THE DEFAULT VALUES OFTEN WORK REASONABLY WELL  */
 	static final double GAMMA_DISCOUNT_FACTOR = 0.95; /* Must be < 1, small values make it very greedy */
 	static final double LEARNING_RATE_CONSTANT = 10; /* See alpha(), lower values are good for quick results in large and deterministic state spaces */
 	double explore_chance = INIT_EXPLORE_CHANCE; /* The exploration chance during the exploration phase */
+//	double explore_chance = 0.5;
 	final static int REPEAT_ACTION_MAX = 30; /* Repeat selected action at most this many times trying reach a new state, without a max it could loop forever if the action cannot lead to a new state */
 
 
@@ -178,11 +179,11 @@ public class QLearningController extends Controller {
 				int action = selectAction(new_state); /* Make sure you understand how it selects an action */
 
 				performAction(action);
-				double degrees = Math.toDegrees(angle.getValue());
 				
+				double degrees = Math.toDegrees(angle.getValue());
+
 				double yVel = Math.abs(vy.getValue());
 				double xVel = Math.abs(vx.getValue());
-				
 				double vel = Math.sqrt(Math.pow(xVel, 2) + Math.pow(yVel, 2));
 				
 				/* Only print every 10th line to reduce spam */
