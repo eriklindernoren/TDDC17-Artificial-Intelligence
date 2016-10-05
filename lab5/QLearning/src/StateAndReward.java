@@ -1,15 +1,14 @@
 public class StateAndReward {
 	
 	/* State discretization function for the angle controller */
-	public static String getStateAngle(double angle, double vx, double vy) {
+	private static String getStateAngle(double angle, double vx, double vy) {
 		
 		String state = "";
 
 		String direction = (angle < 0) ? "W": "E";
-		
 		angle = Math.abs(angle);
 		double degrees = Math.toDegrees(angle);
-		
+				
 		if(degrees < 1)
 			state = "1";
 		else if(degrees < 2)
@@ -29,32 +28,17 @@ public class StateAndReward {
 	}
 
 	/* Reward function for the angle controller */
-	public static double getRewardAngle(double angle, double vx, double vy) {
-		
-		String angleState = getStateAngle(angle, vx, vy);
-				
-		double reward = 0;
-		
-		int degree = Integer.parseInt(angleState.substring(0, angleState.indexOf("(")));
+	private static double getRewardAngle(double angle, double vx, double vy) {
 
-		if(degree == 1)
-			reward = 10000;
-		else if(degree == 2)
-			reward = 3500;
-		else if(degree == 5)
-			reward = 0;
-		else if(degree == 15)
-			reward = -2000;
-		else if(degree == 90)
-			reward = -6000;
-		else
-			reward = -10000;
-		
+		// Angles close to zero will make the reward -> 1000
+		// As the angle gets larger the reward -> 0
+		double reward = 1000/Math.pow(1000, Math.abs(angle));
+
 		return reward;
 	}
 
 	/* State discretization function for the full hover controller */
-	public static String getStateHover(double angle, double vx, double vy) {
+	private static String getStateHover(double angle, double vx, double vy) {
 		
 		String yDir = (vy < 0) ? "N": "S";
 		double yVel = Math.abs(vy);
@@ -64,15 +48,15 @@ public class StateAndReward {
 		String state = "";
 				
     	if(yVel < 0.02 && vel < 0.05)
-    		state = "hover";
+    		state = "HOVER";
     	else if(yVel < 0.02)
-    		state = "yHover";
+    		state = "YHOVER";
     	else if(yVel < 0.1)
-    		state = "ySlow";
+    		state = "YSLOW";
     	else if(yVel < 1)
-    		state = "yMed";
+    		state = "YMED";
 		else
-			state = "yFast";
+			state = "YFAST";
     	
     	state += String.format("(%s)", yDir);
 
@@ -80,23 +64,29 @@ public class StateAndReward {
 	}
 
 	/* Reward function for the full hover controller */
-	public static double getRewardHover(double angle, double vx, double vy) {
+	private static double getRewardHover(double angle, double vx, double vy) {
 
-		String hoverState = getStateHover(angle, vx, vy);
-		String vel = hoverState.substring(0, hoverState.indexOf("("));
+		// Velocities close to zero will make the reward -> 1000
+		// As the velocity grows the reward -> 0
+		double reward = 1000/Math.pow(1000, Math.abs(vy));
+
+		return reward;
+	}
+	
+	public static String getTotalState(double angle, double vx, double vy){
 		
-		double reward = 0;
+		String rotationState = getStateAngle(angle, vx, vy);
+		String velocityState = getStateHover(angle, vx, vy);
+		String state = String.format("%s_%s", rotationState, velocityState);
 		
-		if(vel.equals("hover"))
-			reward = 40000;
-		else if(vel.equals("yHover"))
-			reward = 10000;
-		else if(vel.equals("ySlow"))
-			reward = 0;
-		else if(vel.equals("yMed"))
-			reward = -10000;
-		else
-			reward = -15000;
+		return state;
+	}
+	
+	public static double getTotalReward(double angle, double vx, double vy){
+		
+		double rotationReward = getRewardAngle(angle, vx, vy);
+		double hoverReward = getRewardHover(angle, vx, vy);
+		double reward = rotationReward * hoverReward;
 		
 		return reward;
 	}

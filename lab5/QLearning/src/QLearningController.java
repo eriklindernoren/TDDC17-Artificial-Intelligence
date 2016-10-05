@@ -39,7 +39,7 @@ public class QLearningController extends Controller {
 
 	static final double INIT_EXPLORE_CHANCE = 0.9;
 	static final double FINAL_EXPLORE_CHANCE = 0.1;
-	static final int REDUCE_EXPLORE_UNITL_TICK = 1500000;
+	static final int REDUCE_EXPLORE_UNITL_TICK = 2000000;
 	static final double explore_update = ((INIT_EXPLORE_CHANCE - FINAL_EXPLORE_CHANCE) / REDUCE_EXPLORE_UNITL_TICK);
 	
 	
@@ -134,18 +134,15 @@ public class QLearningController extends Controller {
 			if(explore_chance >= FINAL_EXPLORE_CHANCE)
 				explore_chance -= explore_update;
 			
-			String rotationState = StateAndReward.getStateAngle(angle.getValue(), vx.getValue(), vy.getValue());
-			String velocityState = StateAndReward.getStateHover(angle.getValue(), vx.getValue(), vy.getValue());
-			String new_state = String.format("%s_%s", rotationState, velocityState);
+			String new_state = StateAndReward.getTotalState(angle.getValue(), vx.getValue(), vy.getValue());
 			
 			/* Repeat the chosen action for a while, hoping to reach a new state. This is a trick to speed up learning on this problem. */
 			action_counter++;
 			if (new_state.equals(previous_state) && action_counter < REPEAT_ACTION_MAX) {
 				return;
 			}
-			double rotationReward = StateAndReward.getRewardAngle(previous_angle, previous_vx, previous_vy);
-			double velocityReward = StateAndReward.getRewardHover(previous_angle, previous_vx, previous_vy);
-			double previous_reward = rotationReward + velocityReward;
+
+			double previous_reward = StateAndReward.getTotalReward(previous_angle, previous_vx, previous_vy);
 			
 			action_counter = 0;
 
@@ -188,10 +185,10 @@ public class QLearningController extends Controller {
 				
 				/* Only print every 10th line to reduce spam */
 				print_counter++;
-				if (print_counter % 10 == 0) {
+				if (print_counter % 50 == 0) {
 					System.out.println("ITERATION: " + iteration + " E=" + String.format("%.2f", explore_chance) + " SENSORS: d=" + String.format("%.2f", degrees) + " v=" + String.format("%.2f", vel) + " vx=" + String.format("%.2f", vx.getValue()) + 
 							" vy=" + String.format("%.2f", vy.getValue()) + " P_STATE: " + previous_state + " P_ACTION: " + previous_action + 
-							" P_REWARD: " + df.format(previous_reward) + " P_QVAL: " + String.format("%.2f", Qtable.get(prev_stateaction)) + " Tested: "
+							" P_REWARD: " + String.format("%.2f", previous_reward) + " P_QVAL: " + String.format("%.2f", Qtable.get(prev_stateaction)) + " Tested: "
 							+ Ntable.get(prev_stateaction) + " times.");
 				}
 				

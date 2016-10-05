@@ -50,7 +50,7 @@ public class TutorialController extends Controller {
 		
 //    	System.out.println("Angle: " + angle.getValue());
 //    	System.out.println("Velocity X: " + vx.getValue());
-//    	System.out.println("Velocity Y: " + vy.getValue());
+    	System.out.println("Velocity Y: " + vy.getValue());
 		System.out.println(String.format("Direction: %s, Velocity: %s", dir, vel + ""));
 //		System.out.println("----");
 
