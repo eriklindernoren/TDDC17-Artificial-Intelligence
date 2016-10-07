@@ -39,7 +39,7 @@ public class QLearningController extends Controller {
 
 	static final double INIT_EXPLORE_CHANCE = 0.9;
 	static final double FINAL_EXPLORE_CHANCE = 0.1;
-	static final int REDUCE_EXPLORE_UNITL_TICK = 2000000;
+	static final int REDUCE_EXPLORE_UNITL_TICK = 1500000;
 	static final double explore_update = ((INIT_EXPLORE_CHANCE - FINAL_EXPLORE_CHANCE) / REDUCE_EXPLORE_UNITL_TICK);
 	
 	
